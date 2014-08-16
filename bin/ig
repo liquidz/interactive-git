@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+
+export IG_VERSION="0.0.1"
+
+RTN="" # return value
+GIT='git'
+PECO='peco'
+DEFAULT_COMMIT_OPTION='-v'
+
+# FUNCTION {{{1
+
+function version { # {{{2
+    cat <<EOT
+interactive-git: v$IG_VERSION
+EOT
+}
+
+function help { # {{{2
+    cat <<EOT
+
+Usage: ig [options]
+
+Options:
+  -h   show this help
+  -v   print the version and exit
+
+EOT
+}
+
+function check_dependencies { # {{{2
+    if ! hash $PECO 2>/dev/null; then
+        echo "$PECO is not installed."
+        exit 1
+    fi
+}
+
+function run { # {{{2
+    CMD=$1
+
+    if [[ $DRY_RUN -eq 1 ]]; then
+        echo $CMD
+    else
+        $CMD
+    fi
+}
+
+function show_git_command_list { # {{{2
+    COMMAND_LIST=("branch" "status" "diff" "add" "checkout" "commit" "log" "merge" "rebase" "stash" "pull" "push")
+    for CMD in ${COMMAND_LIST[@]}; do
+        echo $CMD
+    done
+}
+
+function show_git_stash_command_list { # {{{2
+    COMMAND_LIST=("list" "show" "pop" "apply" "save" "drop" "clear")
+    for CMD in ${COMMAND_LIST[@]}; do
+        echo $CMD
+    done
+}
+
+function show_git_branch_command_list { # {{{2
+    COMMAND_LIST=("list" "new" "delete")
+    for CMD in ${COMMAND_LIST[@]}; do
+        echo $CMD
+    done
+}
+
+function select_branch { # {{{2
+    BRANCH=$($GIT branch | $PECO --prompt "Branch>")
+    if [[ "$BRANCH" == "" ]]; then
+        exit 1
+    fi
+    RTN=$BRANCH
+}
+
+function select_remote { # {{{2
+    REMOTE=$($GIT remote | $PECO --prompt "Remote>")
+    if [[ "$REMOTE" == "" ]]; then
+        exit 1
+    fi
+    RTN=$REMOTE
+}
+
+function select_remote_branch { # {{{2
+    REMOTE_BRANCH=$($GIT branch -a | grep remotes | grep -v HEAD | cut -d"/" -f3 | $PECO --prompt "Remote branch>")
+    if [[ "$REMOTE_BRANCH" == "" ]]; then
+        exit 1
+    fi
+    RTN=$REMOTE_BRANCH
+}
+
+function select_revision { # {{{2
+    REVISION=$($GIT log --oneline | $PECO --prompt "Revision>" | cut -d" " -f1)
+    if [[ "$REVISION" == "" ]]; then
+        exit 1
+    fi
+    RTN=$REVISION
+}
+
+function select_stash_command { # {{{2
+    STASH=$($GIT stash list | $PECO --prompt "Stash>" | cut -d":" -f1)
+    if [[ "$STASH" == "" ]]; then
+        exit 1
+    fi
+    RTN=$STASH
+}
+
+function select_unstaged_files { # {{{2
+    FILES=$($GIT ls-files -om | $PECO --prompt "File>")
+    if [[ "$FILES" == "" ]]; then
+        exit 1
+    fi
+    RTN=$FILES
+}
+
+function get_git_config { # {{{2
+    KEY=$1
+    DEFAULT=$2
+    VAL=$($GIT config --get $KEY)
+    if [[ "$VAL" == "" ]]; then
+        RTN=$DEFAULT
+    else
+        RTN=$VAL
+    fi
+}
+
+function get_commit_option { # {{{2
+    get_git_config "ig.commit.option" $DEFAULT_COMMIT_OPTION
+}
+
+# OPTION {{{1
+if [[ $# -ne 0 ]]; then
+    case "$1" in
+        -h) help && exit 0 ;;
+        -v) version && exit 0 ;;
+        -d) DRY_RUN=1 ;;
+        *) help && exit 0
+    esac
+fi
+
+# MAIN {{{1
+check_dependencies
+ITEM=$(show_git_command_list | $PECO --prompt "Git>")
+
+case "$ITEM" in
+    add)
+        select_unstaged_files
+        run "$GIT $ITEM $RTN"
+        ;;
+    branch)
+        SUB=$(show_git_branch_command_list | $PECO --prompt "Branch>")
+        case "$SUB" in
+            list)
+                run "$GIT $ITEM"
+                ;;
+            new)
+                echo -n "branch name>"
+                read BRANCH_NAME
+                run "$GIT $ITEM $BRANCH_NAME"
+                ;;
+            delete)
+                select_branch
+                run "$GIT $ITEM -d $RTN"
+                ;;
+            *)
+                exit 1
+        esac
+        ;;
+    diff | log | status)
+        run "$GIT $ITEM"
+        ;;
+    commit)
+        get_commit_option
+        run "$GIT $ITEM $RTN"
+        ;;
+    checkout | merge)
+        select_branch
+        run "$GIT $ITEM $RTN"
+        ;;
+    pull | push)
+        select_remote
+        REMOTE=$RTN
+        select_remote_branch
+        REMOTE_BRANCH=$RTN
+        run "$GIT $ITEM $REMOTE $REMOTE_BRANCH"
+        ;;
+    rebase)
+        select_revision
+        run "$GIT $ITEM -i $RTN"
+        ;;
+    stash)
+        SUB=$(show_git_stash_command_list | $PECO)
+        case "$SUB" in
+            list | save | clear)
+                run "$GIT $ITEM $SUB"
+                ;;
+            pop | apply | drop | show)
+                select_stash_command
+                run "$GIT $ITEM $SUB $RTN"
+                ;;
+            *)
+                exit 1
+        esac
+        ;;
+    *)
+        exit 1
+esac
+
+exit 0;
