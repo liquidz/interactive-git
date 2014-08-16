@@ -5,7 +5,20 @@ export IG_VERSION="0.0.1"
 RTN="" # return value
 GIT='git'
 PECO='peco'
-DEFAULT_COMMIT_OPTION='-v'
+
+# SETTING {{{1
+function get_git_config { # {{{2
+    KEY=$1
+    DEFAULT=$2
+    VAL=$($GIT config --get $KEY)
+    if [[ "$VAL" == "" ]]; then
+        RTN=$DEFAULT
+    else
+        RTN=$VAL
+    fi
+}
+# {{{2
+get_git_config "ig.commit-option" "-v" && COMMIT_OPTION=$RTN
 
 # FUNCTION {{{1
 
@@ -113,20 +126,7 @@ function select_unstaged_files { # {{{2
     RTN=$FILES
 }
 
-function get_git_config { # {{{2
-    KEY=$1
-    DEFAULT=$2
-    VAL=$($GIT config --get $KEY)
-    if [[ "$VAL" == "" ]]; then
-        RTN=$DEFAULT
-    else
-        RTN=$VAL
-    fi
-}
 
-function get_commit_option { # {{{2
-    get_git_config "ig.commit.option" $DEFAULT_COMMIT_OPTION
-}
 
 # OPTION {{{1
 if [[ $# -ne 0 ]]; then
@@ -170,8 +170,7 @@ case "$ITEM" in
         run "$GIT $ITEM"
         ;;
     commit)
-        get_commit_option
-        run "$GIT $ITEM $RTN"
+        run "$GIT $ITEM $COMMIT_OPTION"
         ;;
     checkout | merge)
         select_branch
