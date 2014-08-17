@@ -2,9 +2,16 @@
 
 export IG_VERSION="0.0.1"
 
+# VARIABLES {{{1
 RTN="" # return value
 GIT='git'
 PECO='peco'
+CURRENT_BRANCH=$($GIT symbolic-ref --short HEAD)
+#ROOT_DIR=$(cd $(dirname $0) && pwd)
+#GIT_ROOT_DIR=$(git rev-parse --show-toplevel 2>/dev/null)
+#if [[ $? -ne 0 ]]; then
+#    exit 1
+#fi
 
 # SETTING {{{1
 function get_git_config { # {{{2
@@ -16,8 +23,7 @@ function get_git_config { # {{{2
     else
         RTN=$VAL
     fi
-}
-# {{{2
+} # }}}
 get_git_config "ig.commit-option" "-v" && COMMIT_OPTION=$RTN
 
 # FUNCTION {{{1
@@ -119,14 +125,12 @@ function select_stash_command { # {{{2
 }
 
 function select_unstaged_files { # {{{2
-    FILES=$($GIT ls-files -om | $PECO --prompt "File>")
+    FILES=$($GIT status -s | $PECO --prompt "Files>" | cut -b 4-)
     if [[ "$FILES" == "" ]]; then
         exit 1
     fi
     RTN=$FILES
 }
-
-
 
 # OPTION {{{1
 if [[ $# -ne 0 ]]; then
@@ -140,7 +144,7 @@ fi
 
 # MAIN {{{1
 check_dependencies
-ITEM=$(show_git_command_list | $PECO --prompt "Git>")
+ITEM=$(show_git_command_list | $PECO --prompt "Git: $CURRENT_BRANCH>")
 
 case "$ITEM" in
     add)
