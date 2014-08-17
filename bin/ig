@@ -25,6 +25,7 @@ function get_git_config { # {{{2
     fi
 } # }}}
 get_git_config "ig.commit-option" "-v" && COMMIT_OPTION=$RTN
+get_git_config "ig.fix-remote-to-origin" "false" && FIX_REMOTE_TO_ORIGIN=$RTN
 
 # FUNCTION {{{1
 
@@ -93,11 +94,15 @@ function select_branch { # {{{2
 }
 
 function select_remote { # {{{2
-    REMOTE=$($GIT remote | $PECO --prompt "Remote>")
-    if [[ "$REMOTE" == "" ]]; then
-        exit 1
+    if [[ "$FIX_REMOTE_TO_ORIGIN" == "true" ]]; then
+        RTN="origin"
+    else
+        REMOTE=$($GIT remote | $PECO --prompt "Remote>")
+        if [[ "$REMOTE" == "" ]]; then
+            exit 1
+        fi
+        RTN=$REMOTE
     fi
-    RTN=$REMOTE
 }
 
 function select_remote_branch { # {{{2
