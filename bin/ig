@@ -26,6 +26,8 @@ function get_git_config { # {{{2
 } # }}}
 get_git_config "ig.commit-option" "-v" && COMMIT_OPTION=$RTN
 get_git_config "ig.fix-remote-to-origin" "false" && FIX_REMOTE_TO_ORIGIN=$RTN
+get_git_config "ig.default-remote" "origin" && DEFAULT_REMOTE=$RTN
+get_git_config "ig.default-remote-branch" "master" && DEFAULT_REMOTE_BRANCH=$RTN
 
 # FUNCTION {{{1
 
@@ -47,6 +49,13 @@ Options:
 EOT
 }
 
+function echo_array { # {{{2
+    declare -a arr=("${!1}")
+    for item in ${arr[@]}; do
+        echo $item
+    done
+}
+
 function check_dependencies { # {{{2
     if ! hash $PECO 2>/dev/null; then
         echo "$PECO is not installed."
@@ -66,23 +75,17 @@ function run { # {{{2
 
 function show_git_command_list { # {{{2
     COMMAND_LIST=("branch" "status" "diff" "add" "checkout" "commit" "log" "merge" "rebase" "stash" "pull" "push")
-    for CMD in ${COMMAND_LIST[@]}; do
-        echo $CMD
-    done
+    echo_array COMMAND_LIST[@]
 }
 
 function show_git_stash_command_list { # {{{2
     COMMAND_LIST=("list" "show" "pop" "apply" "save" "drop" "clear")
-    for CMD in ${COMMAND_LIST[@]}; do
-        echo $CMD
-    done
+    echo_array COMMAND_LIST[@]
 }
 
 function show_git_branch_command_list { # {{{2
     COMMAND_LIST=("list" "new" "delete")
-    for CMD in ${COMMAND_LIST[@]}; do
-        echo $CMD
-    done
+    echo_array COMMAND_LIST[@]
 }
 
 function select_branch { # {{{2
@@ -97,7 +100,11 @@ function select_remote { # {{{2
     if [[ "$FIX_REMOTE_TO_ORIGIN" == "true" ]]; then
         RTN="origin"
     else
-        REMOTE=$($GIT remote | $PECO --prompt "Remote>")
+        REMOTES=($($GIT remote))
+        if [[ ${#REMOTES[@]} -eq 0 ]]; then
+            REMOTES=($DEFAULT_REMOTE)
+        fi
+        REMOTE=$(echo_array REMOTES[@] | $PECO --prompt "Remote>")
         if [[ "$REMOTE" == "" ]]; then
             exit 1
         fi
@@ -106,7 +113,11 @@ function select_remote { # {{{2
 }
 
 function select_remote_branch { # {{{2
-    REMOTE_BRANCH=$($GIT branch -a | grep remotes | grep -v HEAD | cut -d"/" -f3 | $PECO --prompt "Remote branch>")
+    REMOTE_BRANCHES=($($GIT branch -a | grep remotes | grep -v HEAD | cut -d"/" -f3))
+    if [[ ${#REMOTE_BRANCHES[@]} -eq 0 ]]; then
+        REMOTE_BRANCHES=($DEFAULT_REMOTE_BRANCH)
+    fi
+    REMOTE_BRANCH=$(echo_array REMOTE_BRANCHES[@] | $PECO --prompt "Remote branch>")
     if [[ "$REMOTE_BRANCH" == "" ]]; then
         exit 1
     fi
